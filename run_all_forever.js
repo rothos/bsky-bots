@@ -1,7 +1,12 @@
 import Bot from './bot.js'
+import fs from 'node:fs';
 import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
+
+// --- Big line in the log file so we can see when the script restarts
+
+fs.appendFileSync('console.log', "-".repeat(80)+"\n")
 
 
 // --- This is the main logic for the limerick bot and the haiku bot
@@ -86,18 +91,28 @@ haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
 })
 
 
+// --- A utility for truncating the log file
+import { exec } from 'child_process';
+const truncateLogFile = function() {
+    // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
+    exec(`tail -c 1M console.log > /tmp/bsky_bots_log_file && rm console.log `
+        + `&& mv /tmp/bsky_bots_log_file console.log`, (err, stdout, stderr) => {});
+}
+
+
 // --- Set up an interval and run them
 
-const minutes = 1;
-const the_interval = minutes * 60 * 1000;
+const seconds = 30;
+const the_interval = seconds * 60 * 60 * 1000;
 
-// The funny way this function is set up -- how it returns itself --
-// is purely so that run_all will run once before the setInterval
 const run_all = function() {
     console.log() // extra newline in the log
+    fs.appendFileSync('console.log', "\n")
 
     haikubot.run_once()
     limerickbot.run_once()
+
+    truncateLogFile()
 
     return run_all;
 }

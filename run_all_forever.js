@@ -16,9 +16,16 @@ await limerickbot.login({
 })
 
 limerickbot.onMention = function(notif) {
-    limerickbot.log(`-> replying to ${notif.uri}`)
+    // console.log(notif)
+    if ('reply' in notif.record) {
+        limerickbot.log(`Replying to reply ${notif.uri}`)
+    } else {
+        limerickbot.log(`Replying to top-level post ${notif.uri}`)
+    }   
 }
 
+
+// console.log(await limerickbot.agent.countUnreadNotifications())
 limerickbot.run_once()
 
 

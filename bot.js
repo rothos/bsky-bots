@@ -14,13 +14,13 @@ export default class Bot {
 
     constructor(params) {
         this.name = params.name;
+        this.agent = null;
         this.onFollow = function() {}
         this.onMention = function() {}
         this.onLike = function() {}
         this.onRepost = function() {}
         this.onReply = function() {}
         this.onQuote = function() {}
-        this.agent = null;
     }
 
     async login(bsky_credentials) {
@@ -50,11 +50,34 @@ export default class Bot {
     }
 
     async run_once() {
-        const notifs = await this.getNotifications()
+        // First grab a list of notifications
+        const all_notifs = await this.getNotifications()
 
-        notifs.forEach(notif => {
-            this.log(`New ${notif.reason}`)
+        // Filter for unread ones
+        const new_notifs = all_notifs.filter((notif) => {
+            return notif.isRead === false;
+        });
 
+        // Print out a line to the log detailing the unreads
+        const counts = new_notifs.reduce((acc, notif) => {
+            if (acc[notif.reason]) {
+                acc[notif.reason] += 1
+            } else {
+                acc[notif.reason] = 1
+            }
+            return acc
+        }, {})
+
+        const counts_text = Object.keys(counts)
+            .map(key => `${counts[key]} ${key}s`)
+
+        this.log(`Found ${new_notifs.length} new notifications: ` +
+            `${counts_text.join(', ')}`)
+
+        // Mark notifications as read
+        // this.markNotificationsAsRead()
+
+        new_notifs.forEach(notif => {
             switch(notif.reason) {
                 case 'mention':
                     this.onMention(notif)
@@ -81,7 +104,8 @@ export default class Bot {
                     break;
 
                 default:
-                    this.log(`Unknown notification reason "${notif.reason}"`)
+                    this.log(`Warning: Unknown ` +
+                        `notification reason "${notif.reason}"`)
             }
         })
 
@@ -92,6 +116,10 @@ export default class Bot {
         const response_notifs = await this.agent.listNotifications();
         const notifs = response_notifs.data.notifications;
         return notifs;
+    }
+
+    async markNotificationsAsRead() {
+        this.agent.updateSeenNotifications();
     }
 
     log(str) {

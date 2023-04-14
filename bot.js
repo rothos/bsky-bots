@@ -2,6 +2,7 @@ import bsky from '@atproto/api';
 const { BskyAgent } = bsky;
 import oai from "openai";
 const { Configuration, OpenAIApi } = oai;
+import fs from 'node:fs';
 import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
@@ -27,7 +28,9 @@ export default class Bot {
     }
 
     log(str) {
-        console.log(`${getTime()} [${this.name}] ${str}`)
+        const logline = `${getTime()} [${this.name}] ${str}`;
+        console.log(logline)
+        fs.appendFileSync('console.log', logline + "\n")
     }
 
     async login(bsky_credentials) {

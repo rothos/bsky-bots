@@ -1,11 +1,12 @@
 import Bot from './bot.js'
-import fs from 'node:fs';
 import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
 
+
 // --- Big line in the log file so we can see when the script restarts
 
+import fs from 'node:fs';
 fs.appendFileSync('console.log', "-".repeat(80)+"\n")
 
 
@@ -92,6 +93,7 @@ haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
 
 
 // --- A utility for truncating the log file
+
 import { exec } from 'child_process';
 const truncateLogFile = function() {
     // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});

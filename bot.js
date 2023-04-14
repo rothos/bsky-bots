@@ -14,7 +14,10 @@ export default class Bot {
 
     constructor(params) {
         this.name = params.name;
-        this.agent = null;
+        this.handle = null;
+        this.did;
+        this.bskyAgent = null;
+        this.openai = null;
         this.onFollow = function() {}
         this.onMention = function() {}
         this.onLike = function() {}
@@ -23,28 +26,36 @@ export default class Bot {
         this.onQuote = function() {}
     }
 
+    log(str) {
+        console.log(`${getTime()} [${this.name}] ${str}`)
+    }
+
     async login(bsky_credentials) {
         this.log('Logging into bsky...')
 
         // Log in to Bluesky
-        this.agent = new BskyAgent({
+        this.bskyAgent = new BskyAgent({
             service: 'https://bsky.social',
             persistSession: (evt, sess) => {
                 // store the session-data for reuse
                 // [how to do this??]
             },
         });
-        await this.agent.login({
+        const response = await this.bskyAgent.login({
             identifier: bsky_credentials.username,
             password: bsky_credentials.password,
-        });
+        })
+
+        // Save our user details
+        this.handle = response.data.handle;
+        this.did = response.data.did;
 
         // Log in to OpenAI
         const configuration = new Configuration({
             organization: process.env.OPENAI_ORG,
             apiKey: process.env.OPENAI_API_KEY,
         });
-        const openai = new OpenAIApi(configuration);
+        this.openai = new OpenAIApi(configuration);
 
         this.log('Logged in.')
     }
@@ -75,54 +86,106 @@ export default class Bot {
             `${counts_text.join(', ')}`)
 
         // Mark notifications as read
-        // this.markNotificationsAsRead()
+        this.markNotificationsAsRead()
 
-        new_notifs.forEach(notif => {
-            switch(notif.reason) {
-                case 'mention':
-                    this.onMention(notif)
-                    break;
+        await Promise.all(
+            new_notifs.map(async (notif) => {
+                switch(notif.reason) {
+                    case 'mention':
+                        await this.onMention(notif)
+                        break;
 
-                case 'like':
-                    this.onLike(notif)
-                    break;
+                    case 'like':
+                        await this.onLike(notif)
+                        break;
 
-                case 'follow':
-                    this.onFollow(notif)
-                    break;
+                    case 'follow':
+                        await this.onFollow(notif)
+                        break;
 
-                case 'repost':
-                    this.onRepost(notif)
-                    break;
+                    case 'repost':
+                        await this.onRepost(notif)
+                        break;
 
-                case 'reply':
-                    this.onReply(notif)
-                    break;
+                    case 'reply':
+                        await this.onReply(notif)
+                        break;
 
-                case 'quote':
-                    this.onQuote(notif)
-                    break;
+                    case 'quote':
+                        await this.onQuote(notif)
+                        break;
 
-                default:
-                    this.log(`Warning: Unknown ` +
-                        `notification reason "${notif.reason}"`)
-            }
-        })
+                    default:
+                        this.log(`Warning: Unknown ` +
+                            `notification reason "${notif.reason}"`)
+                }
+            })
+        )
 
-        this.log('Done. Goodbye.')
+        this.log('Completed async responses. Goodbye.')
     }
+        
 
     async getNotifications() {
-        const response_notifs = await this.agent.listNotifications();
+        const response_notifs = await this.bskyAgent.listNotifications();
         const notifs = response_notifs.data.notifications;
         return notifs;
     }
 
     async markNotificationsAsRead() {
-        this.agent.updateSeenNotifications();
+        this.bskyAgent.updateSeenNotifications();
     }
 
-    log(str) {
-        console.log(`${getTime()} [${this.name}] ${str}`)
+    async postReply(notif, text) {
+        this.log(`Posting reply "${text.split("\n")[0]}..."`)
+
+        let root = notif;
+        if ('reply' in notif.record) {
+            root = notif.record.reply.root;
+        }
+
+        await this.bskyAgent.post({
+            text: text,
+            reply: {
+                parent: {
+                    uri: notif.uri,
+                    cid: notif.cid,
+                },
+                root: {
+                    uri: root.uri,
+                    cid: root.cid,
+                },
+            },
+        });
     }
+
+    async getGPT4Completion(prompt) {
+        // return 'test completion'
+        const completion = await this.openai.createChatCompletion({
+            model: 'gpt-4',
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                },
+            ],
+        });
+        return completion.data.choices[0].message.content;;
+    }
+
+    countAuthorPostsInThread = function (thread, did) {
+        var count = 0;
+
+        if (thread.post.author.did === did) {
+            count++;
+        }
+
+        if (thread.hasOwnProperty('parent')) {
+            count += this.countAuthorPostsInThread(thread.parent, did);
+        }
+
+        return count;
+    }
+
+
 }

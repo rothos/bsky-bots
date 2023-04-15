@@ -13,42 +13,42 @@ fs.appendFileSync('console.log', "-".repeat(80)+"\n")
 // --- This is the main logic for the limerick bot and the haiku bot
 
 const replyGuyBotLogicForOnMention = function(bot, params) {
-    return async function(notif) {
+    return async function(bot, params, notif) {
         let prompt = "";
 
         // Check to see if it's a reply or a top-level post
         if ('reply' in notif.record) {
-            limerickbot.log(`Replying to reply ${notif.uri}`)
+            bot.log(`Replying to reply ${notif.uri}`)
 
             // Extract relevant info about the post
-            const parent_thread = await limerickbot.bskyAgent
+            const parent_thread = await bot.bskyAgent
                 .getPostThread({ uri: notif.record.reply.parent.uri, depth: 99 });
             const post_text = parent_thread.data.thread.post.record.text; // limerick inspo
             prompt = params.replyPrompt + post_text;
 
             // Count how many times we've already replied in this thread
-            const n_replies = limerickbot
-                .countAuthorPostsInThread(parent_thread.data.thread, limerickbot.did);
+            const n_replies = bot
+                .countAuthorPostsInThread(parent_thread.data.thread, bot.did);
 
             // Don't respond if we've already replied 5 or more times in this thread
             if (n_replies >= 5) {
                 // Like the post we just replied to
-                await limerickbot.bskyAgent.like(notif.uri, notif.cid)
+                await bot.bskyAgent.like(notif.uri, notif.cid)
                 // But don't reply
                 return;
             }
         } else {
-            limerickbot.log(`Replying to top-level post ${notif.uri}`)
+            bot.log(`Replying to top-level post ${notif.uri}`)
             prompt = params.topLevelPrompt + notif.record.text;
         }
 
         // Generate the reply and then post it
-        const replytext = await limerickbot.getGPT4Completion(prompt)
-        await limerickbot.postReply(notif, replytext)
+        const replytext = await bot.getGPT4Completion(prompt)
+        await bot.postReply(notif, replytext)
 
         // Like the post we just replied to
-        await limerickbot.bskyAgent.like(notif.uri, notif.cid)
-    }
+        await bot.bskyAgent.like(notif.uri, notif.cid)
+    }.bind(null, bot, params)
 }
 
 
@@ -105,7 +105,7 @@ const truncateLogFile = function() {
 // --- Set up an interval and run them
 
 const seconds = 30;
-const the_interval = seconds * 60 * 60 * 1000;
+const the_interval = seconds * 1000;
 
 const run_all = function() {
     console.log() // extra newline in the log

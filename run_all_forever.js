@@ -3,7 +3,6 @@ import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
 
-
 // --- Big line in the log file so we can see when the script restarts
 
 import fs from 'node:fs';
@@ -92,13 +91,26 @@ haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
 })
 
 
-// --- A utility for truncating the log file
+// --- Logging utilities
 
 import { exec } from 'child_process';
 const truncateLogFile = function() {
     // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
     exec(`tail -c 1M console.log > /tmp/bsky_bots_log_file && rm console.log `
         + `&& mv /tmp/bsky_bots_log_file console.log`, (err, stdout, stderr) => {});
+}
+
+const getTime = function() {
+  return new Date().toISOString().replace(/T/, ' ').replace(/Z/, '')
+}
+
+const log = function(str) {
+    let logline = ''
+    if (str !== undefined) {
+        logline = `${getTime()} [main] ${str}`;
+    }
+    console.log(logline)
+    fs.appendFileSync('console.log', logline + "\n")
 }
 
 
@@ -108,11 +120,14 @@ const seconds = 30;
 const the_interval = seconds * 1000;
 
 const run_all = function() {
-    console.log() // extra newline in the log
-    fs.appendFileSync('console.log', "\n")
+    log() // extra newline in log file
 
-    haikubot.run_once()
-    limerickbot.run_once()
+    try {
+        haikubot.run_once()
+        limerickbot.run_once()
+    } catch(error) {
+        log(error)
+    }
 
     truncateLogFile()
 

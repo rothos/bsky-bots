@@ -85,8 +85,13 @@ export default class Bot {
         const counts_text = Object.keys(counts)
             .map(key => `${counts[key]} ${key}s`)
 
-        this.log(`Found ${new_notifs.length} new notifications: ` +
-            `${counts_text.join(', ')}`)
+        if (new_notifs.length > 0) {
+            this.log(`Found ${new_notifs.length} new notifications: ` +
+                `${counts_text.join(', ')}`)
+        } else {
+            this.log(`No new notifications.`);
+            return;
+        }
 
         // Mark notifications as read
         this.markNotificationsAsRead()
@@ -127,7 +132,7 @@ export default class Bot {
 
         this.log('Completed async responses. Goodbye.')
     }
-        
+
 
     async getNotifications() {
         const response_notifs = await this.bskyAgent.listNotifications();

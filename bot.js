@@ -19,6 +19,7 @@ export default class Bot {
         this.did;
         this.bskyAgent = null;
         this.openai = null;
+        this.bsky_credentials = null;
         this.onFollow = function() {}
         this.onMention = function() {}
         this.onLike = function() {}
@@ -35,37 +36,74 @@ export default class Bot {
 
     async login(bsky_credentials) {
         this.log('Logging into bsky...')
+        this.bsky_credentials = bsky_credentials
 
-        // Log in to Bluesky
-        this.bskyAgent = new BskyAgent({
-            service: 'https://bsky.social',
-            persistSession: (evt, sess) => {
-                // store the session-data for reuse
-                // [how to do this??]
-            },
-        });
-        const response = await this.bskyAgent.login({
-            identifier: bsky_credentials.username,
-            password: bsky_credentials.password,
-        })
+        try {
+            // Log in to Bluesky
+            this.bskyAgent = new BskyAgent({
+                service: 'https://bsky.social',
+                persistSession: (evt, sess) => {
+                    // store the session-data for reuse
+                    // [how to do this??]
+                },
+            });
 
-        // Save our user details
-        this.handle = response.data.handle;
-        this.did = response.data.did;
+            const response = await this.bskyAgent.login({
+                identifier: bsky_credentials.username,
+                password: bsky_credentials.password,
+            })
 
-        // Log in to OpenAI
-        const configuration = new Configuration({
-            organization: process.env.OPENAI_ORG,
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-        this.openai = new OpenAIApi(configuration);
+            // Save our user details
+            this.handle = response.data.handle;
+            this.did = response.data.did;
 
-        this.log('Logged in.')
+            // Log in to OpenAI
+            const configuration = new Configuration({
+                organization: process.env.OPENAI_ORG,
+                apiKey: process.env.OPENAI_API_KEY,
+            });
+            this.openai = new OpenAIApi(configuration);
+
+            this.log('Logged in.')
+
+        } catch (error) {
+            this.log(`LOGIN ERROR: ${error}`)
+        }
+    }
+
+    async ensureLogin() {
+        if (this.bskyAgent
+            && this.bskyAgent.hasOwnProperty("session")
+            && this.bskyAgent.session.hasOwnProperty("accessJwt")
+            && typeof this.bskyAgent.session.accessJwt === "string"
+            && this.bskyAgent.session.accessJwt.length > 0)
+        {
+            return true
+        }
+
+        // We're not logged in
+        this.log('Not logged in. Attempting to log in to bsky.')
+        try {
+            await this.login(this.bsky_credentials)
+            this.log('Logged in.')
+        } catch (error) {
+            this.log('Unable to log in to bsky.')
+        }
     }
 
     async run_once() {
+        // Make sure we're logged in
+        await this.ensureLogin()
+
         // First grab a list of notifications
-        const all_notifs = await this.getNotifications()
+        let all_notifs
+        try {
+            all_notifs = await this.getNotifications()
+        } catch (error) {
+            this.log("ERROR: Could not retrieve notifications.")
+            this.log(error)
+            return
+        }
 
         // Filter for unread ones
         const new_notifs = all_notifs.filter((notif) => {
@@ -90,45 +128,57 @@ export default class Bot {
                 `${counts_text.join(', ')}`)
         } else {
             this.log(`No new notifications.`);
-            return;
+            return
         }
 
         // Mark notifications as read
-        this.markNotificationsAsRead()
+        try {
+            this.markNotificationsAsRead()
+        } catch (error) {
+            this.log("ERROR: Could not mark notifications as read.")
+            this.log(error)
+            return
+        }
 
-        await Promise.all(
-            new_notifs.map(async (notif) => {
-                switch(notif.reason) {
-                    case 'mention':
-                        await this.onMention(notif)
-                        break;
+        try {
+            await Promise.all(
+                new_notifs.map(async (notif) => {
+                    switch(notif.reason) {
+                        case 'mention':
+                            await this.onMention(notif)
+                            break;
 
-                    case 'like':
-                        await this.onLike(notif)
-                        break;
+                        case 'like':
+                            await this.onLike(notif)
+                            break;
 
-                    case 'follow':
-                        await this.onFollow(notif)
-                        break;
+                        case 'follow':
+                            await this.onFollow(notif)
+                            break;
 
-                    case 'repost':
-                        await this.onRepost(notif)
-                        break;
+                        case 'repost':
+                            await this.onRepost(notif)
+                            break;
 
-                    case 'reply':
-                        await this.onReply(notif)
-                        break;
+                        case 'reply':
+                            await this.onReply(notif)
+                            break;
 
-                    case 'quote':
-                        await this.onQuote(notif)
-                        break;
+                        case 'quote':
+                            await this.onQuote(notif)
+                            break;
 
-                    default:
-                        this.log(`Warning: Unknown ` +
-                            `notification reason "${notif.reason}"`)
-                }
-            })
-        )
+                        default:
+                            this.log(`Warning: Unknown ` +
+                                `notification reason "${notif.reason}"`)
+                    }
+                })
+            )
+        } catch (error) {
+            this.log("ERROR while responding to notifications.")
+            this.log(error)
+            return
+        }
 
         this.log('Completed async responses. Goodbye.')
     }

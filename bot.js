@@ -33,13 +33,19 @@ export default class Bot {
         this.onQuote = function() {}
     }
 
-    log(str) {
+    log = (str) => {
         const logline = `${getTime()} [${this.name}] ${str}`;
         console.log(logline)
         fs.appendFileSync(this.logfile, logline + "\n")
     }
 
-    async login(bsky_credentials) {
+    truncateLogFile = () => {
+        // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
+        exec(`tail -c 1M ${this.logfile} > /tmp/${this.logfile} && rm ${this.logfile} `
+            + `&& mv /tmp/${this.logfile} ${this.logfile}`, (err, stdout, stderr) => {});
+    }
+
+    login = async (bsky_credentials) => {
         this.log("-".repeat(80))
         this.log('Logging into bsky...')
         this.bsky_credentials = bsky_credentials
@@ -77,7 +83,7 @@ export default class Bot {
         }
     }
 
-    async ensureLogin() {
+    ensureLogin = async () => {
         if (this.bskyAgent
             && this.bskyAgent.hasOwnProperty("session")
             && this.bskyAgent.session.hasOwnProperty("accessJwt")
@@ -97,7 +103,7 @@ export default class Bot {
         }
     }
 
-    async run_once() {
+    respondToNotifications_main = async () => {
         // Make sure we're logged in
         await this.ensureLogin()
 
@@ -189,39 +195,39 @@ export default class Bot {
         this.log('Completed async responses. Goodbye.')
     }
 
-    truncateLogFile = function() {
-        // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
-        exec(`tail -c 1M ${this.logfile} > /tmp/${this.logfile} && rm ${this.logfile} `
-            + `&& mv /tmp/${this.logfile} ${this.logfile}`, (err, stdout, stderr) => {});
-    }
-
-    perInterval = function(self) {
+    respondToNotifications = () => {
         try {
-            this.run_once()
+            this.respondToNotifications_main()
         } catch (error) {
             this.log(error)
         }
 
         this.truncateLogFile()
 
-        return this.perInterval.bind(self)
+        return this.respondToNotifications
     }
 
-    setInterval(interval_in_milliseconds) {
-        this.interval = setInterval(this.perInterval(this), interval_in_milliseconds)
+    newInterval = (fn, interval_in_milliseconds) => {
+        fn() // run it immediately, and then every interval_in_milliseconds
+        this.interval = setInterval(fn, interval_in_milliseconds)
     }
 
-    async getNotifications() {
+    getNotifications = async () => {
         const response_notifs = await this.bskyAgent.listNotifications();
         const notifs = response_notifs.data.notifications;
         return notifs;
     }
 
-    async markNotificationsAsRead() {
+    markNotificationsAsRead = async () => {
         this.bskyAgent.updateSeenNotifications();
     }
 
-    async postReply(notif, text) {
+    post = async (obj) => {
+        this.log(`Posting...`)
+        await this.bskyAgent.post(obj)
+    }
+
+    postReply = async (notif, text) => {
         this.log(`Posting reply "${text.split("\n")[0]}..."`)
 
         let root = notif;
@@ -244,7 +250,7 @@ export default class Bot {
         });
     }
 
-    async getGPT4Completion(prompt) {
+    getGPT4Completion = async (prompt) => {
         // return 'test completion'
         const completion = await this.openai.createChatCompletion({
             model: 'gpt-4',
@@ -258,7 +264,7 @@ export default class Bot {
         return completion.data.choices[0].message.content;;
     }
 
-    countAuthorPostsInThread = function (thread, did) {
+    countAuthorPostsInThread = (thread, did) => {
         var count = 0;
 
         if (thread.post.author.did === did) {
@@ -271,6 +277,5 @@ export default class Bot {
 
         return count;
     }
-
 
 }

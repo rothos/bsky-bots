@@ -46,7 +46,6 @@ const replyGuyBotLogicForOnMention = function(bot, params) {
 }
 
 
-
 // --- Set up the limerick bot
 
 const limerickbot = new Bot({name: "limerickbot"})
@@ -54,16 +53,14 @@ await limerickbot.login({
     username: process.env.BSKY_LIMERICKBOT_USERNAME,
     password: process.env.BSKY_LIMERICKBOT_PASSWORD
 })
+const limerick_prompt = `Your name is @limerick.bot.gar.lol, your job is to respond to `
+    + `everything in the form of a limerick. `
+    + `The following is an instruction or inspiration for a limerick. `
+    + `Create a limerick accordingly.\n\n`
 limerickbot.onMention = replyGuyBotLogicForOnMention(limerickbot, {
     // topLevelPrompt: `Rewrite this as a limerick in no more than 300 characters:\n\n`,
-    topLevelPrompt: `Your name is @limerick.bot.gar.lol, your job is to respond to `
-                + `everything in the form of a limerick. `
-                + `The following is an instruction or inspiration for a limerick. `
-                + `Create a limerick accordingly.\n\n`,
-    replyPrompt: `Your name is @limerick.bot.gar.lol, your job is to respond to `
-                + `everything in the form of a limerick. `
-                + `The following is an instruction or inspiration for a limerick. `
-                + `Create a limerick accordingly.\n\n`,
+    topLevelPrompt: limerick_prompt,
+    replyPrompt: limerick_prompt
 })
 
 
@@ -74,22 +71,47 @@ await haikubot.login({
     username: process.env.BSKY_HAIKUBOT_USERNAME,
     password: process.env.BSKY_HAIKUBOT_PASSWORD
 })
+const haiku_prompt = `Your name is @haiku.bot.gar.lol, your job is to respond to `
+    + `everything in the form of a haiku. `
+    + `The following is an instruction or inspiration for a haiku. `
+    + `Create a haiku accordingly.\n\n`
 haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
-    topLevelPrompt: `Your name is @haiku.bot.gar.lol, your job is to respond to `
-                    + `everything in the form of a haiku. `
-                    + `The following is an instruction or inspiration for a haiku. `
-                    + `Create a haiku accordingly.\n\n`,
-    replyPrompt: `Your name is @haiku.bot.gar.lol, your job is to respond to `
-                    + `everything in the form of a haiku. `
-                    + `The following is an instruction or inspiration for a haiku. `
-                    + `Create a haiku accordingly.\n\n`,
+    topLevelPrompt: haiku_prompt,
+    replyPrompt: haiku_prompt
 })
 
 
-// --- Set up an interval and run them
+// --- Set up the opulent joy bot
 
-const seconds = 30;
-const the_interval = seconds * 1000;
+// // Authenticate via OAuth
+// var tumblr = require('tumblr.js');
+// var client = tumblr.createClient({
+//   consumer_key: process.env.TUMBLR_CONSUMER_KEY,
+//   consumer_secret: process.env.TUMBLR_CONSUMER_SECRET,
+//   token: process.env.TUMBLR_OAUTH_TOKEN,
+//   token_secret: process.env.TUMBLR_OAUTH_SECRET'
+// });
 
-haikubot.setInterval(the_interval)
-limerickbot.setInterval(the_interval)
+// // Make the request
+// client.blogPosts('opulentjoy.tumblr.com', { type: 'photo', limit: 20, offset: 0 }, function (err, data) {
+//     // ...
+// });
+
+// const opulentjoybot = new Bot({name: "opulentjoybot"})
+// await opulentjoybot.login({
+//     username: process.env.BSKY_OPULENTJOYBOT_USERNAME,
+//     password: process.env.BSKY_OPULENTJOYBOT_PASSWORD
+// })
+// const joybotrun = async function() {
+//     return
+// }
+
+
+// --- Set intervals and run them
+
+// Check and respond to notifs every 30 seconds
+haikubot.newInterval(haikubot.respondToNotifications, 30 * 1000)
+limerickbot.newInterval(limerickbot.respondToNotifications, 30 * 1000)
+
+// Post something once per day
+// opulentjoybot.newInterval(joybotrun, 24 * 60 * 60 * 1000)

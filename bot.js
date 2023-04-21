@@ -8,7 +8,9 @@ import process from 'node:process';
 dotenv.config();
 
 const getTime = function() {
-  return new Date().toISOString().replace(/T/, ' ').replace(/Z/, '')
+    let date = new Date();
+    date = new Date(date.getTime() - date.getTimezoneOffset()*60000);
+    return date.toISOString().replace(/T/, ' ').replace(/Z/, '')
 }
 
 export default class Bot {

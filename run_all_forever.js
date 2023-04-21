@@ -3,11 +3,6 @@ import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
 
-// --- Big line in the log file so we can see when the script restarts
-
-import fs from 'node:fs';
-fs.appendFileSync('console.log', "-".repeat(80)+"\n")
-
 
 // --- This is the main logic for the limerick bot and the haiku bot
 
@@ -91,49 +86,10 @@ haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
 })
 
 
-// --- Logging utilities
-
-import { exec } from 'child_process';
-const truncateLogFile = function() {
-    // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
-    exec(`tail -c 1M console.log > /tmp/bsky_bots_log_file && rm console.log `
-        + `&& mv /tmp/bsky_bots_log_file console.log`, (err, stdout, stderr) => {});
-}
-
-const getTime = function() {
-    let date = new Date();
-    date = new Date(date.getTime() - date.getTimezoneOffset()*60000);
-    return date.toISOString().replace(/T/, ' ').replace(/Z/, '')
-}
-
-const log = function(str) {
-    let logline = ''
-    if (str !== undefined) {
-        logline = `${getTime()} [main] ${str}`;
-    }
-    console.log(logline)
-    fs.appendFileSync('console.log', logline + "\n")
-}
-
-
 // --- Set up an interval and run them
 
 const seconds = 30;
 const the_interval = seconds * 1000;
 
-const run_all = function() {
-    log() // extra newline in log file
-
-    try {
-        haikubot.run_once()
-        limerickbot.run_once()
-    } catch(error) {
-        log(error)
-    }
-
-    truncateLogFile()
-
-    return run_all;
-}
-
-setInterval(run_all(), the_interval);
+haikubot.setInterval(the_interval)
+limerickbot.setInterval(the_interval)

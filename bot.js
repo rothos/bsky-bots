@@ -3,6 +3,7 @@ const { BskyAgent } = bsky;
 import oai from "openai";
 const { Configuration, OpenAIApi } = oai;
 import fs from 'node:fs';
+import { exec } from 'child_process';
 import * as dotenv from 'dotenv';
 import process from 'node:process';
 dotenv.config();
@@ -17,11 +18,13 @@ export default class Bot {
 
     constructor(params) {
         this.name = params.name;
+        this.logfile = this.name + ".log"
         this.handle = null;
         this.did;
         this.bskyAgent = null;
         this.openai = null;
         this.bsky_credentials = null;
+        this.interval = null;
         this.onFollow = function() {}
         this.onMention = function() {}
         this.onLike = function() {}
@@ -33,10 +36,11 @@ export default class Bot {
     log(str) {
         const logline = `${getTime()} [${this.name}] ${str}`;
         console.log(logline)
-        fs.appendFileSync('console.log', logline + "\n")
+        fs.appendFileSync(this.logfile, logline + "\n")
     }
 
     async login(bsky_credentials) {
+        this.log("-".repeat(80))
         this.log('Logging into bsky...')
         this.bsky_credentials = bsky_credentials
 
@@ -185,6 +189,27 @@ export default class Bot {
         this.log('Completed async responses. Goodbye.')
     }
 
+    truncateLogFile = function() {
+        // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
+        exec(`tail -c 1M ${this.logfile} > /tmp/${this.logfile} && rm ${this.logfile} `
+            + `&& mv /tmp/${this.logfile} ${this.logfile}`, (err, stdout, stderr) => {});
+    }
+
+    perInterval = function(self) {
+        try {
+            this.run_once()
+        } catch (error) {
+            this.log(error)
+        }
+
+        this.truncateLogFile()
+
+        return this.perInterval.bind(self)
+    }
+
+    setInterval(interval_in_milliseconds) {
+        this.interval = setInterval(this.perInterval(this), interval_in_milliseconds)
+    }
 
     async getNotifications() {
         const response_notifs = await this.bskyAgent.listNotifications();

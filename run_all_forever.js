@@ -93,8 +93,10 @@ haikubot.onMention = replyGuyBotLogicForOnMention(haikubot, {
 // });
 
 // // Make the request
-// client.blogPosts('opulentjoy.tumblr.com', { type: 'photo', limit: 20, offset: 0 }, function (err, data) {
-//     // ...
+// client.blogPosts('opulentjoy.tumblr.com',
+//     { type: 'photo', limit: 20, offset: 0 },
+//     function (err, data) {
+//         // ...
 // });
 
 // const opulentjoybot = new Bot({name: "opulentjoybot"})

@@ -33,19 +33,19 @@ export default class Bot {
         this.onQuote = function() {}
     }
 
-    log = (str) => {
+    log(str) {
         const logline = `${getTime()} [${this.name}] ${str}`;
         console.log(logline)
         fs.appendFileSync(this.logfile, logline + "\n")
     }
 
-    truncateLogFile = () => {
+    truncateLogFile = function() {
         // exec('tail -c 10M console.log > console.log', (err, stdout, stderr) => {});
         exec(`tail -c 1M ${this.logfile} > /tmp/${this.logfile} && rm ${this.logfile} `
             + `&& mv /tmp/${this.logfile} ${this.logfile}`, (err, stdout, stderr) => {});
     }
 
-    login = async (bsky_credentials) => {
+    async login(bsky_credentials) {
         this.log("-".repeat(80))
         this.log('Logging into bsky...')
         this.bsky_credentials = bsky_credentials
@@ -83,7 +83,7 @@ export default class Bot {
         }
     }
 
-    ensureLogin = async () => {
+    async ensureLogin() {
         if (this.bskyAgent
             && this.bskyAgent.hasOwnProperty("session")
             && this.bskyAgent.session.hasOwnProperty("accessJwt")
@@ -103,7 +103,7 @@ export default class Bot {
         }
     }
 
-    respondToNotifications_main = async () => {
+    async respondToNotifications_main() {
         // Make sure we're logged in
         await this.ensureLogin()
 
@@ -195,6 +195,7 @@ export default class Bot {
         this.log('Completed async responses. Goodbye.')
     }
 
+    // Arrow function because it's a callback for the newInterval function
     respondToNotifications = () => {
         try {
             this.respondToNotifications_main()
@@ -207,27 +208,27 @@ export default class Bot {
         return this.respondToNotifications
     }
 
-    newInterval = (fn, interval_in_milliseconds) => {
+    newInterval(fn, interval_in_milliseconds) {
         fn() // run it immediately, and then every interval_in_milliseconds
         this.interval = setInterval(fn, interval_in_milliseconds)
     }
 
-    getNotifications = async () => {
+    async getNotifications() {
         const response_notifs = await this.bskyAgent.listNotifications();
         const notifs = response_notifs.data.notifications;
         return notifs;
     }
 
-    markNotificationsAsRead = async () => {
+    async markNotificationsAsRead() {
         this.bskyAgent.updateSeenNotifications();
     }
 
-    post = async (obj) => {
+    async post(obj) {
         this.log(`Posting...`)
         await this.bskyAgent.post(obj)
     }
 
-    postReply = async (notif, text) => {
+    async postReply(notif, text) {
         this.log(`Posting reply "${text.split("\n")[0]}..."`)
 
         let root = notif;
@@ -250,7 +251,7 @@ export default class Bot {
         });
     }
 
-    getGPT4Completion = async (prompt) => {
+    async getGPT4Completion(prompt) {
         // return 'test completion'
         const completion = await this.openai.createChatCompletion({
             model: 'gpt-4',
@@ -264,7 +265,7 @@ export default class Bot {
         return completion.data.choices[0].message.content;;
     }
 
-    countAuthorPostsInThread = (thread, did) => {
+    countAuthorPostsInThread = function (thread, did) {
         var count = 0;
 
         if (thread.post.author.did === did) {

@@ -229,7 +229,7 @@ export default class Bot {
     }
 
     async postReply(notif, text) {
-        this.log(`Posting reply "${text.split("\n")[0]}..."`)
+        this.log(`Posting reply "${text.split("\n")[0]} ..."`)
 
         let root = notif;
         if ('reply' in notif.record) {

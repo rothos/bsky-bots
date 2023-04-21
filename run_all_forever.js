@@ -7,42 +7,43 @@ dotenv.config();
 // --- This is the main logic for the limerick bot and the haiku bot
 
 const replyGuyBotLogicForOnMention = function(bot, params) {
-    return async function(bot, params, notif) {
+    return async function(params, notif) {
         let prompt = "";
 
         // Check to see if it's a reply or a top-level post
         if ('reply' in notif.record) {
-            bot.log(`Replying to reply ${notif.uri}`)
+            this.log(`Replying to reply ${notif.uri}`)
 
             // Extract relevant info about the post
-            const parent_thread = await bot.bskyAgent
+            const parent_thread = await this.bskyAgent
                 .getPostThread({ uri: notif.record.reply.parent.uri, depth: 99 });
             const post_text = parent_thread.data.thread.post.record.text; // limerick inspo
             prompt = params.replyPrompt + post_text;
 
             // Count how many times we've already replied in this thread
             const n_replies = bot
-                .countAuthorPostsInThread(parent_thread.data.thread, bot.did);
+                .countAuthorPostsInThread(parent_thread.data.thread, this.did);
 
             // Don't respond if we've already replied 5 or more times in this thread
             if (n_replies >= 5) {
                 // Like the post we just replied to
-                await bot.bskyAgent.like(notif.uri, notif.cid)
+                await this.bskyAgent.like(notif.uri, notif.cid)
                 // But don't reply
                 return;
             }
         } else {
-            bot.log(`Replying to top-level post ${notif.uri}`)
+            this.log(`Replying to top-level post ${notif.uri}`)
             prompt = params.topLevelPrompt + notif.record.text;
         }
 
         // Generate the reply and then post it
-        const replytext = await bot.getGPT4Completion(prompt)
-        await bot.postReply(notif, replytext)
+        const replytext = await this.getGPT4Completion(prompt)
+        await this.postReply(notif, replytext)
 
         // Like the post we just replied to
-        await bot.bskyAgent.like(notif.uri, notif.cid)
-    }.bind(null, bot, params)
+        await this.bskyAgent.like(notif.uri, notif.cid)
+
+    }.bind(bot, params)
 }
 
 
